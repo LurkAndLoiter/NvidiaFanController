@@ -47,5 +47,5 @@ def fanspeed_from_t(t):
 - TEMP_MIN: if it's this or below use FAN_MIN for fan speed
 - TEMP_MAX: if it's this or above use FAN_MAX for fan speed
 - FAN_MIN, FAN_MAX: These are both integer percentage values so 50% fan speed up to 100%
->[!note]
+>[!Caution]
 >I set FAN_MIN to 50 or 50% becasue I cannot hear this. I would not recommend going below 40% most GPUs are not able to run at their pynvml reported minimum which is usally 30% and I have found from my personal experience that running at even 35% can result in sporadic behavior if you have inconsistencies in your electrical supply. For me I live by factories that often drain the supply to the point of dimming lights so I have to be extra paranoid about that stuff. But 40% is stable for me so it should be for you as well it's just there is no difference in noise level for me so I run at 50% min
