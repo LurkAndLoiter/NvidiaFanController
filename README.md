@@ -1,6 +1,8 @@
 >[!warning]
 >I no longer use the python version. I now use the fancontroller compiled from fancontroller.c and nvml.h. nvml headers are unmodified from nvidia and only included for the convenience of others.
 >
+>If you do not wish to compile it yourself you can find a precompiled binary on [releases](https://github.com/LurkAndLoiter/NvidiaFanController/releases)
+>
 >To compile the c use:
 >
 >`gcc -o MyOutputName fanController.c -I /PATH/TO/NVML.hParentFolder/ -lnvidia-ml`
