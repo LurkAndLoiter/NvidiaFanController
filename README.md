@@ -1,5 +1,9 @@
 >[!warning]
->I no longer use this version. I now use the fancontroller compiled from fancontroller.c and nvml.h. nvml headers are unmodified from nvidia and only included for the convenience of others.
+>I no longer use the python version. I now use the fancontroller compiled from fancontroller.c and nvml.h. nvml headers are unmodified from nvidia and only included for the convenience of others.
+>
+>To compile the c use:
+>
+>`gcc -o MyOutputName fanController.c -I /PATH/TO/NVML.hParentFolder/ -lnvidia-ml`
 
 # NvidiaFanController
 A simple python pynvml control script for Nvidia fan control
