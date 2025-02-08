@@ -1,5 +1,5 @@
 >[!warning]
->I no longer use this version. I now use a C version.
+>I no longer use this version. I now use the fancontroller compiled from fancontroller.c and nvml.h. nvml headers are unmodified from nvidia and only included for the convenience of others.
 
 # NvidiaFanController
 A simple python pynvml control script for Nvidia fan control
