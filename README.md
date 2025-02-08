@@ -1,3 +1,6 @@
+>[!warning]
+>I no longer use this version. I now use a C version.
+
 # NvidiaFanController
 A simple python pynvml control script for Nvidia fan control
 
