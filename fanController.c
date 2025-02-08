@@ -5,6 +5,11 @@
 #include <stdlib.h> // For exit function
 
 unsigned int fanspeedFromT(unsigned int temperature) {
+    // IMPORTANT TempTargets and FanTargets are corelated by index.
+    // You can have 1, 2, or even more targets. ie, [0], [0,50], [0,10,20,30,40,50,60,70,80,90,100]
+    // The temps and fan speeds should be from minimum to max.
+    // FanSpeeds is a % base 0-100%. 
+    // WARN all fans have a minimum fan speed most are reported as 30% but I find even 35% is unstable at times.
     int TempTargets[] = {55,80};
     int FanTargets[] = {40,100};
     int length = sizeof(FanTargets) / sizeof(FanTargets[0]);
