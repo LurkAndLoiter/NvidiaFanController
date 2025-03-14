@@ -1,60 +1,90 @@
->[!warning]
->I no longer use the python version. I now use the fancontroller compiled from fancontroller.c and nvml.h. nvml headers are unmodified from nvidia and only included for the convenience of others.
->
->If you do not wish to compile it yourself you can find a precompiled binary on [releases](https://github.com/LurkAndLoiter/NvidiaFanController/releases)
->
->To compile the c use:
->
->`gcc -o MyOutputName fanController.c -I /PATH/TO/NVML.hParentFolder/ -lnvidia-ml`
+# NVIDIA GPU Fan Controller
 
-# NvidiaFanController
-A simple python pynvml control script for Nvidia fan control
+This project is a C-based utility for controlling NVIDIA GPU fan speeds based on temperature readings using the NVIDIA Management Library (NVML). It dynamically adjusts fan speeds according to predefined temperature targets and provides robust error handling, signal management, and multi-GPU support.
 
-## Dependencies
-python3 with [pynvml](https://pypi.org/project/pynvml/)
+## Features
+- **Dynamic Fan Control**: Adjusts fan speeds based on GPU temperature using a linear interpolation between target points.
+- **Multi-GPU Support**: Monitors and controls fans on multiple NVIDIA GPUs simultaneously.
+- **Signal Handling**: Gracefully handles termination signals (e.g., Ctrl+C) to reset fan control to default.
+- **Adaptive Polling**: Adjusts polling interval based on temperature changes for efficiency.
+- **Command-Line Option**: Accepts a polling interval as an optional argument (e.g., `./fanController 0.5` for 0.5 seconds).
 
-## Setup
-change script `#!` to point to your python executor. I personally use a [Virtual Environment](https://wiki.archlinux.org/title/Python/Virtual_environment).
+## Prerequisites
+- NVIDIA GPU with driver support for NVML.
+- NVIDIA Management Library (NVML) development files installed (typically part of the NVIDIA driver package)(included nvml.h for convenience).
+- A C compiler (e.g., `gcc`).
+- `make` for building with the provided Makefile.
 
-## systemd service
-/etc/systemd/system/SomeName.service
+## Building the Project
+This project uses a Makefile for compilation. The `nvml.h` header is included in the repository, so you don't need to install it separately.
+
+To build the executable `fanController`:
 ```bash
-[Unit]
-Description=Nvidia Fan Controller
-After=multi.user.target
-
-[Service]
-ExecStart=/opt/fancontroller/NvidiaFanController.py
-Restart=on-failure
-RestartSec=1s
-Type=simple
-
-[Install]
-WantedBy=multi-user.target
+make
 ```
->[!important]
->make sure the ExecStart is pointing to your script location.
+### Notes for Compilation
+* Ensure `libnvidia-ml.so` is available on your system (usually in `/usr/lib` or `/usr/lib64`). You may need root privileges to link against it.
+* The `-I ./` flag assumes `nvml.h` is in the project directory, which it is in this repository.
 
-`sudo systemctl enable --now SomeName.service`
-
-## Fan Curves
-This is where the fan speed will be determined.
-```python
-TEMP_MIN = 55
-TEMP_MAX = 80
-FAN_MIN = 50
-FAN_MAX = 100
-TEMP_RANGE = TEMP_MAX - TEMP_MIN
-FAN_RANGE = FAN_MAX - FAN_MIN
-TEMP_MULTIPLIER = FAN_RANGE / TEMP_RANGE
-def fanspeed_from_t(t):
-  if t <= TEMP_MIN: return FAN_MIN
-  if t >= TEMP_MAX: return FAN_MAX
-  return (((t - TEMP_MIN) * TEMP_MULTIPLIER) + FAN_MIN)
+## Usage
+Run the program with an optional polling interval (in seconds):
+```bash
+./fanController [interval]
 ```
+* Default interval is 1 second if not specified.
+* Example: `./fanController 0.5` for a 0.5-second base polling interval.
 
-- TEMP_MIN: if it's this or below use FAN_MIN for fan speed
-- TEMP_MAX: if it's this or above use FAN_MAX for fan speed
-- FAN_MIN, FAN_MAX: These are both integer percentage values so 50% fan speed up to 100%
->[!Caution]
->I set FAN_MIN to 50 or 50% becasue I cannot hear this. I would not recommend going below 40% most GPUs are not able to run at their pynvml reported minimum which is usally 30% and I have found from my personal experience that running at even 35% can result in sporadic behavior if you have inconsistencies in your electrical supply. For me I live by factories that often drain the supply to the point of dimming lights so I have to be extra paranoid about that stuff. But 40% is stable for me so it should be for you as well it's just there is no difference in noise level for me so I run at 50% min
+The program will:
+1. Initialize NVML and detect all NVIDIA GPUs.
+2. Monitor GPU temperatures continuously.
+3. Adjust fan speeds based on the temperature and predefined targets.
+4. Log temperature and fan speed changes to stdout.
+
+## Configuration
+### Temperature and Fan Speed Targets
+The fan control logic relies on two arrays defined in `fanController.c`:
+* `TempTargets`: Array of temperature thresholds (in °C).
+* `FanTargets`: Array of corresponding fan speeds (as percentages, 0-100%).
+#### Key Points:
+* **Index Correlation:** `TempTargets` and `FanTargets` are related by their indices. For example, `TempTargets[0]` corresponds to `FanTargets[0]`.
+* **Ordering:** Both arrays must be sorted from lowest to highest value. The program assumes this ordering for linear interpolation.
+* **Length:** The arrays must have the same number of elements. You can have 1, 2, or more targets (e.g., `{0, 50}` or `{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}`).
+* **Example:**
+> ```c
+>     static const int TempTargets[] = {55, 80};
+>     static const int FanTargets[] = {40, 100};
+> ```
+> * At 55°C, the fan speed is 40%.
+> * At 80°C or above, the fan speed is 100%.
+> * Between 55°C and 80°C, the speed is linearly interpolated.
+
+>[!warning]
+>Most GPU fans have a minimum speed (often reported as 30%, but 35% might be more stable). Setting `FanTargets` below this may result in unstable behavior(fan toggling on/off).
+
+### TEMP_THRESHOLD
+* Defined as `#define TEMP_THRESHOLD 2`.
+* This is the minimum temperature change (in °C) required to trigger a fan speed adjustment.
+* Prevents unnecessary fan speed changes due to minor temperature fluctuations, reducing wear and noise.
+* Adjust this value based on your sensitivity needs (e.g., increase to 5 for less frequent updates).
+
+### MAX_DEVICES
+* Defined as `#define MAX_DEVICES 16`.
+* Limits the number of GPUs the program will manage to prevent buffer overflows.
+* If you have more than 16 GPUs, increase this value and recompile.
+
+### Code Structure
+* **fanController.c:** Main source file containing all logic.
+* **nvml.h:** NVIDIA Management Library header (included in the repository).
+* **Makefile:** Build script for easy compilation.
+
+### How It Works
+* **Initialization:** NVML is initialized, and GPU handles are obtained.
+* **Slope Calculation:** Pre-calculates slopes between temperature targets for efficient interpolation.
+* **Main Loop:** Continuously monitors GPU temperatures, adjusts fan speeds if the change exceeds `TEMP_THRESHOLD`, and sleeps adaptively based on temperature variation.
+* **Cleanup:** Resets fan control to firmware defaults on exit or signal interruption.
+
+### Important Notes
+* **Permissions:** Running the program may require root privileges (`sudo`) to access NVML functions.
+* **Error Handling:** Check stdout for error messages if NVML calls fail (e.g., device not found, fan speed setting failed).
+* **Fan Speed Stability:** Test your `FanTargets` values to ensure they work with your specific GPU model.
+* **Memory:** The program dynamically allocates memory for the slopes array based on `TARGET_COUNT`. Ensure your system has sufficient memory if using many targets.
