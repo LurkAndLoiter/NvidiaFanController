@@ -1,95 +1,166 @@
-#include <stdio.h> // For prints
-#include <unistd.h> // For sleep function
-#include <nvml.h>  // For NVML
-#include <signal.h> // For signal handling
-#include <stdlib.h> // For exit function
+#include <stdio.h>
+#include <unistd.h>
+#include <nvml.h>
+#include <signal.h>
+#include <stdlib.h>
 
-unsigned int fanspeedFromT(unsigned int temperature) {
-    // IMPORTANT TempTargets and FanTargets are corelated by index.
-    // You can have 1, 2, or even more targets. ie, [0], [0,50], [0,10,20,30,40,50,60,70,80,90,100]
-    // The temps and fan speeds should be from minimum to max.
-    // FanSpeeds is a % base 0-100%. 
-    // WARN all fans have a minimum fan speed most are reported as 30% but I find even 35% is unstable at times.
-    int TempTargets[] = {55,80};
-    int FanTargets[] = {40,100};
-    int length = sizeof(FanTargets) / sizeof(FanTargets[0]);
+#define TEMP_THRESHOLD 2 // degrees Celsius
+#define MAX_DEVICES 1   // Maximum number of GPUs to support
+
+// Static temperature and fan speed targets
+static const int TempTargets[] = {55, 80}; // Can be any number of targets
+static const int FanTargets[] = {40, 100}; // Must match TempTargets length
+static const int TARGET_COUNT = sizeof(FanTargets) / sizeof(FanTargets[0]);
+
+// Pre-calculate slopes
+void initSlopes(int *slopes) {
+    for(int k = 0; k < TARGET_COUNT - 1; k++) {
+        slopes[k] = (FanTargets[k + 1] - FanTargets[k]) * 100 / 
+                   (TempTargets[k + 1] - TempTargets[k]);
+    }
+}
+
+unsigned int fanspeedFromT(unsigned int temperature, int *slopes) {
+    if (TARGET_COUNT == 1) return FanTargets[0];
+    if (temperature <= TempTargets[0]) return FanTargets[0];
+    if (temperature >= TempTargets[TARGET_COUNT-1]) return FanTargets[TARGET_COUNT-1];
+    
     int i;
-    if (length == 1) return FanTargets[0]; // single target
-    if (temperature <= TempTargets[0]) return FanTargets[0]; // min target
-    if (temperature >= TempTargets[length-1]) return FanTargets[length-1]; // max target
     for (i = 0; temperature > TempTargets[i]; i++) {
         continue;
-    } 
-    return (unsigned int)(((temperature - TempTargets[i-1]) * ((FanTargets[i] - FanTargets[i-1]) / (TempTargets[i] - TempTargets[i-1]))) + FanTargets[i-1]);
-}
-
-void setFanSpeed(nvmlDevice_t device, unsigned int temperature) {
-    unsigned int targetSpeed = fanspeedFromT(temperature);
-    unsigned int fanCount;
-    nvmlDeviceGetNumFans(device, &fanCount);
-
-    for (unsigned int j = 0; j < fanCount; j++) {
-        nvmlDeviceSetFanSpeed_v2(device, j, targetSpeed);
     }
+    return FanTargets[i-1] + ((temperature - TempTargets[i-1]) * slopes[i-1]) / 100;
 }
 
-// ReEnables firmware control of fanspeeds
-void resetFanControl(nvmlDevice_t device) {
-    unsigned int fanCount;
-    nvmlDeviceGetNumFans(device, &fanCount);
+nvmlReturn_t setFanSpeed(nvmlDevice_t device, unsigned int temperature, unsigned int fanCount, int *slopes) {
+    unsigned int targetSpeed = fanspeedFromT(temperature, slopes);
+    nvmlReturn_t result;
     
     for (unsigned int j = 0; j < fanCount; j++) {
-        nvmlDeviceSetDefaultFanSpeed_v2(device, j);
+        result = nvmlDeviceSetFanSpeed_v2(device, j, targetSpeed);
+        if (result != NVML_SUCCESS) return result;
     }
+    return NVML_SUCCESS;
 }
 
-// Global variable to hold the device handle
-nvmlDevice_t device;
+nvmlReturn_t resetFanControl(nvmlDevice_t device, unsigned int fanCount) {
+    nvmlReturn_t result;
+    for (unsigned int j = 0; j < fanCount; j++) {
+        result = nvmlDeviceSetDefaultFanSpeed_v2(device, j);
+        if (result != NVML_SUCCESS) return result;
+    }
+    return NVML_SUCCESS;
+}
 
-// Signal handler for cleanup
+// Global variables
+nvmlDevice_t devices[MAX_DEVICES];
+unsigned int fanCounts[MAX_DEVICES];
+unsigned int deviceCount = 0;
+
 void cleanup(int signum) {
-    if (device) {
-        resetFanControl(device);
+    for (unsigned int i = 0; i < deviceCount; i++) {
+        if (devices[i]) {
+            resetFanControl(devices[i], fanCounts[i]);
+        }
     }
     nvmlShutdown();
+    printf("Cleanup complete, exiting with signal %d\n", signum);
     exit(0);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     nvmlReturn_t result;
-    unsigned int deviceCount;
-    unsigned int temperature;
-    unsigned int previousTemperature = 0;
+    unsigned int temperatures[MAX_DEVICES];
+    unsigned int prev_temperatures[MAX_DEVICES] = {0};
+    float polling_interval = 1.0; // Default 1 second
+    
+    // Dynamically allocate slopes array
+    int *slopes = malloc((TARGET_COUNT - 1) * sizeof(int));
+    if (!slopes) {
+        printf("Failed to allocate memory for slopes\n");
+        return 1;
+    }
+
+    // Parse command line argument for polling interval
+    if (argc > 1) {
+        polling_interval = atof(argv[1]);
+        if (polling_interval <= 0) polling_interval = 1.0;
+    }
 
     // Initialize NVML
-    nvmlInit();
-    // Get the number of GPUs
-    nvmlDeviceGetCount(&deviceCount);
+    result = nvmlInit();
+    if (result != NVML_SUCCESS) {
+        printf("Failed to initialize NVML: %s\n", nvmlErrorString(result));
+        free(slopes);
+        return 1;
+    }
+
+    // Get device count and handles
+    result = nvmlDeviceGetCount(&deviceCount);
+    if (result != NVML_SUCCESS) {
+        printf("Failed to get device count: %s\n", nvmlErrorString(result));
+        free(slopes);
+        nvmlShutdown();
+        return 1;
+    }
     
+    if (deviceCount > MAX_DEVICES) deviceCount = MAX_DEVICES;
+
     // Register signal handlers
-    signal(SIGINT, cleanup); // Handle Ctrl+C
-    signal(SIGTERM, cleanup); // Handle termination signal
-    signal(SIGQUIT, cleanup);  // Handle quit signal
-    signal(SIGABRT, cleanup);  // Handle abort signal
-    signal(SIGSEGV, cleanup);  // Handle segmentation fault
-    signal(SIGILL, cleanup);   // Handle illegal instruction
-    signal(SIGFPE, cleanup);   // Handle floating-point exception
-    // Loop through each GPU
+    signal(SIGINT, cleanup);
+    signal(SIGTERM, cleanup);
+    signal(SIGQUIT, cleanup);
+    signal(SIGABRT, cleanup);
+    signal(SIGSEGV, cleanup);
+    signal(SIGILL, cleanup);
+    signal(SIGFPE, cleanup);
+
+    // Initialize devices and fan counts
     for (unsigned int i = 0; i < deviceCount; i++) {
-        nvmlDeviceGetHandleByIndex(i, &device);
-        
-        // Monitor temperature and fan speed in a loop
-        while (1) {
-            nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &temperature);
-            if (temperature != previousTemperature) {
-                previousTemperature = temperature;
-                setFanSpeed(device, temperature);
-            }
-            sleep(1); // Sleep for a second before checking again
+        result = nvmlDeviceGetHandleByIndex(i, &devices[i]);
+        if (result != NVML_SUCCESS) {
+            printf("Failed to get device %d handle: %s\n", i, nvmlErrorString(result));
+            free(slopes);
+            cleanup(0);
+        }
+        result = nvmlDeviceGetNumFans(devices[i], &fanCounts[i]);
+        if (result != NVML_SUCCESS) {
+            printf("Failed to get fan count for device %d: %s\n", i, nvmlErrorString(result));
+            free(slopes);
+            cleanup(0);
         }
     }
 
-    // Shutdown NVML
-    nvmlShutdown();
+    initSlopes(slopes); // Initialize slope calculations
+
+    // Main monitoring loop
+    while (1) {
+        for (unsigned int i = 0; i < deviceCount; i++) {
+            result = nvmlDeviceGetTemperature(devices[i], NVML_TEMPERATURE_GPU, &temperatures[i]);
+            if (result != NVML_SUCCESS) {
+                printf("Failed to get temperature for device %d: %s\n", i, nvmlErrorString(result));
+                continue;
+            }
+
+            int temp_diff = abs((int)temperatures[i] - (int)prev_temperatures[i]);
+            if (temp_diff >= TEMP_THRESHOLD) {
+                result = setFanSpeed(devices[i], temperatures[i], fanCounts[i], slopes);
+                if (result != NVML_SUCCESS) {
+                    printf("Failed to set fan speed for device %d: %s\n", i, nvmlErrorString(result));
+                } else {
+                    prev_temperatures[i] = temperatures[i];
+                    printf("Device %d: Temp: %u°C, Fan Speed: %u%%\n", 
+                           i, temperatures[i], fanspeedFromT(temperatures[i], slopes));
+                }
+            }
+
+            // Adaptive sleep based on temperature change
+            float sleep_time = (temp_diff > 5) ? polling_interval/2 : polling_interval;
+            usleep((useconds_t)(sleep_time * 1000000));
+        }
+    }
+
+    free(slopes);  // Free allocated memory (never reached due to infinite loop)
+    cleanup(0);
     return 0;
 }
