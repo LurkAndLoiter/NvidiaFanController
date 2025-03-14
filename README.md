@@ -18,13 +18,13 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 ## Building the Project
 This project uses a Makefile for compilation. The `nvml.h` header is included in the repository, so you don't need to install it separately.
 
-To build the executable `fanController`:
+To build the executable `fanController` run `make` in the project folder:
 ```bash
 make
 ```
 ### Notes for Compilation
 * Ensure `libnvidia-ml.so` is available on your system (usually in `/usr/lib` or `/usr/lib64`). You may need root privileges to link against it.
-* The `-I ./` flag assumes `nvml.h` is in the project directory, which it is in this repository.
+* The `Makefile` `-I ./` flag assumes `nvml.h` is in the project directory, which it is in this repository.
 
 ## Usage
 Run the program with an optional polling interval (in seconds):
@@ -68,9 +68,9 @@ The fan control logic relies on two arrays defined in `fanController.c`:
 * Adjust this value based on your sensitivity needs (e.g., increase to 5 for less frequent updates).
 
 ### MAX_DEVICES
-* Defined as `#define MAX_DEVICES 16`.
+* Defined as `#define MAX_DEVICES 1`.
 * Limits the number of GPUs the program will manage to prevent buffer overflows.
-* If you have more than 16 GPUs, increase this value and recompile.
+* If you have more than 1 GPUs, increase this value and recompile.
 
 ### Code Structure
 * **fanController.c:** Main source file containing all logic.
