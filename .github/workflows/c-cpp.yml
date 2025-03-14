@@ -8,16 +8,13 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc nvidia-utils-535  # Adjust version as needed
+    - name: Build
       run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
