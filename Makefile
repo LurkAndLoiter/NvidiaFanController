@@ -1,4 +1,12 @@
-CC=gcc
+DEBUG ?= 0
+
+CFLAGS = -Wall -g
+
+ifeq ($(DEBUG), 1)
+    CFLAGS += -DDEBUG
+endif
+
+CC=gcc $(CFLAGS)
 
 all: fanController
 
