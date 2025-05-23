@@ -76,7 +76,7 @@ The fan control logic relies on two arrays defined in `fanController.c`:
 - `TempTargets`: Array of temperature thresholds (in °C).
 - `FanTargets`: Array of corresponding fan speeds (as percentages, 0-100%).
 
-#### Key Points:
+#### Key Points
 
 - **Index Correlation:** `TempTargets` and `FanTargets` are related by their indices. For example, `TempTargets[0]` corresponds to `FanTargets[0]`.
 - **Ordering:** Both arrays must be sorted from lowest to highest value. The program assumes this ordering for linear interpolation.
