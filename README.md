@@ -22,6 +22,14 @@ To build the executable `fanController` run `make` in the project folder:
 ```bash
 make
 ```
+To build the default filesystem, enable, and start the fanController you can run this from the project folder:
+```bash
+make
+sudo mv ./fanController /opt/fanController
+sudo cp ./nvidia-fancontroller.service /usr/lib/systemd/system/nvidia-fancontroller.service
+sudo systemctl enable --now nvidia-fancontroller.service
+```
+
 ### Notes for Compilation
 * Ensure `libnvidia-ml.so` is available on your system (usually in `/usr/lib` or `/usr/lib64`). You may need root privileges to link against it.
 * In `fanController.c` `#include "nvml.h"` assumes `nvml.h` is in the project directory, which it is in this repository.
@@ -40,9 +48,9 @@ The program will:
 3. Adjust fan speeds based on the temperature and predefined targets.
 4. Log temperature and fan speed changes to stdout.
 
-## Included systemd service file 
-* The indcluded systemd service file will attempt to load the fanctroller binary at boot alongside items such as bluetoothd and networkd this means the fanController will already be working by the time you're at your login screen.
-* nvidia-fancontroller.service assumes a file location of /opt/fanController
+## Systemd service file 
+* The included systemd service file will attempt to load the fanController binary at boot alongside items such as bluetoothd and networkd this means the fanController will already be working by the time you're at your login screen.
+* nvidia-fancontroller.service assumes a fanController location of /opt/fanController adjust according to your setup.
 
 >[!note]
 >ideally fanController will be placed in /opt/fanController placing fanController in $HOME will result in a single service fail loop but should execute on the second attempt. This is caused by systemd service file being called before $HOME is mounted.
