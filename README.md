@@ -87,6 +87,16 @@ The fan control logic relies on two arrays defined in `fanController.c`:
   >     static const int FanTargets[] = {40, 100};
   > ```
   >
+  > - At 55°C or below, the fan speed is 40%.
+  > - At 80°C or above, the fan speed is 100%.
+  > - Between 55°C and 80°C, the speed is linearly interpolated.
+
+- **Example with 0 RPM:**
+  > ```c
+  >     static const int TempTargets[] = {54, 55, 80};
+  >     static const int FanTargets[] = {0, 40, 100};
+  > ```
+  > - At 54°C or below, the fan speed is 0%
   > - At 55°C, the fan speed is 40%.
   > - At 80°C or above, the fan speed is 100%.
   > - Between 55°C and 80°C, the speed is linearly interpolated.
