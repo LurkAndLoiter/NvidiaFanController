@@ -11,7 +11,7 @@ CC=gcc $(CFLAGS)
 all: fanController
 
 fanController: fanController.c
-	$(CC) -o fanController fanController.c -I ./ -lnvidia-ml 
+	$(CC) -o fanController fanController.c -lnvidia-ml 
 
 clean:
 	rm fanController

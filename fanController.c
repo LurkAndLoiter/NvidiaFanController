@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <nvml.h>
+#include "nvml.h"
 #include <signal.h>
 #include <stdlib.h>
 

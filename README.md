@@ -24,7 +24,7 @@ make
 ```
 ### Notes for Compilation
 * Ensure `libnvidia-ml.so` is available on your system (usually in `/usr/lib` or `/usr/lib64`). You may need root privileges to link against it.
-* The `Makefile` `-I ./` flag assumes `nvml.h` is in the project directory, which it is in this repository.
+* In `fanController.c` `#include "nvml.h"` assumes `nvml.h` is in the project directory, which it is in this repository.
 
 ## Usage
 Run the program with an optional polling interval (in seconds):
@@ -39,6 +39,13 @@ The program will:
 2. Monitor GPU temperatures continuously.
 3. Adjust fan speeds based on the temperature and predefined targets.
 4. Log temperature and fan speed changes to stdout.
+
+## Included systemd service file 
+* The indcluded systemd service file will attempt to load the fanctroller binary at boot alongside items such as bluetoothd and networkd this means the fanController will already be working by the time you're at your login screen.
+* nvidia-fancontroller.service assumes a file location of /opt/fanController
+
+>[!note]
+>ideally fanController will be placed in /opt/fanController placing fanController in $HOME will result in a single service fail loop but should execute on the second attempt. This is caused by systemd service file being called before $HOME is mounted.
 
 ## Configuration
 ### Temperature and Fan Speed Targets
