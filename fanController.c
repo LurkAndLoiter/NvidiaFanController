@@ -4,6 +4,10 @@
 #include <signal.h>
 #include <stdlib.h>
 
+#ifndef DEBUG
+#define DEBUG 0 
+#endif 
+
 #define TEMP_THRESHOLD 2 // degrees Celsius
 #define MAX_DEVICES 1   // Maximum number of GPUs to support
 
@@ -64,7 +68,9 @@ void cleanup(int signum) {
         }
     }
     nvmlShutdown();
-    printf("Cleanup complete, exiting with signal %d\n", signum);
+    if (DEBUG) {
+        printf("Cleanup complete, exiting with signal %d\n", signum);
+    }
     exit(0);
 }
 
@@ -77,7 +83,9 @@ int main(int argc, char *argv[]) {
     // Dynamically allocate slopes array
     int *slopes = malloc((TARGET_COUNT - 1) * sizeof(int));
     if (!slopes) {
-        printf("Failed to allocate memory for slopes\n");
+        if (DEBUG) {
+            printf("Failed to allocate memory for slopes\n");
+        }
         return 1;
     }
 
@@ -90,7 +98,9 @@ int main(int argc, char *argv[]) {
     // Initialize NVML
     result = nvmlInit();
     if (result != NVML_SUCCESS) {
-        printf("Failed to initialize NVML: %s\n", nvmlErrorString(result));
+        if (DEBUG) {
+            printf("Failed to initialize NVML: %s\n", nvmlErrorString(result));
+        }
         free(slopes);
         return 1;
     }
@@ -98,7 +108,9 @@ int main(int argc, char *argv[]) {
     // Get device count and handles
     result = nvmlDeviceGetCount(&deviceCount);
     if (result != NVML_SUCCESS) {
-        printf("Failed to get device count: %s\n", nvmlErrorString(result));
+        if (DEBUG) {
+            printf("Failed to get device count: %s\n", nvmlErrorString(result));
+        }
         free(slopes);
         nvmlShutdown();
         return 1;
@@ -119,13 +131,17 @@ int main(int argc, char *argv[]) {
     for (unsigned int i = 0; i < deviceCount; i++) {
         result = nvmlDeviceGetHandleByIndex(i, &devices[i]);
         if (result != NVML_SUCCESS) {
-            printf("Failed to get device %d handle: %s\n", i, nvmlErrorString(result));
+            if (DEBUG) {
+                printf("Failed to get device %d handle: %s\n", i, nvmlErrorString(result));
+            }
             free(slopes);
             cleanup(0);
         }
         result = nvmlDeviceGetNumFans(devices[i], &fanCounts[i]);
         if (result != NVML_SUCCESS) {
-            printf("Failed to get fan count for device %d: %s\n", i, nvmlErrorString(result));
+            if (DEBUG) {
+                printf("Failed to get fan count for device %d: %s\n", i, nvmlErrorString(result));
+            }
             free(slopes);
             cleanup(0);
         }
@@ -138,7 +154,9 @@ int main(int argc, char *argv[]) {
         for (unsigned int i = 0; i < deviceCount; i++) {
             result = nvmlDeviceGetTemperature(devices[i], NVML_TEMPERATURE_GPU, &temperatures[i]);
             if (result != NVML_SUCCESS) {
-                printf("Failed to get temperature for device %d: %s\n", i, nvmlErrorString(result));
+                if (DEBUG) {
+                    printf("Failed to get temperature for device %d: %s\n", i, nvmlErrorString(result));
+                }
                 continue;
             }
 
@@ -146,11 +164,15 @@ int main(int argc, char *argv[]) {
             if (temp_diff >= TEMP_THRESHOLD) {
                 result = setFanSpeed(devices[i], temperatures[i], fanCounts[i], slopes);
                 if (result != NVML_SUCCESS) {
-                    printf("Failed to set fan speed for device %d: %s\n", i, nvmlErrorString(result));
+                    if (DEBUG) {
+                        printf("Failed to set fan speed for device %d: %s\n", i, nvmlErrorString(result));
+                    }
                 } else {
                     prev_temperatures[i] = temperatures[i];
-                    printf("Device %d: Temp: %u°C, Fan Speed: %u%%\n", 
-                           i, temperatures[i], fanspeedFromT(temperatures[i], slopes));
+                    if (DEBUG) {
+                        printf("Device %d: Temp: %u°C, Fan Speed: %u%%\n", 
+                            i, temperatures[i], fanspeedFromT(temperatures[i], slopes));
+                    } 
                 }
             }
 
