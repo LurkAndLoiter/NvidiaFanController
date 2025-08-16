@@ -70,6 +70,7 @@ void cleanup(int signum) {
         }
     }
     if (slopes) free(slopes);
+    slopes = NULL;
     nvmlShutdown();
     if (DEBUG) {
         printf("Cleanup complete, exiting with signal %d\n", signum);
