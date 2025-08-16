@@ -69,7 +69,7 @@ void cleanup(int signum) {
             resetFanControl(devices[i], fanCounts[i]);
         }
     }
-    free(slopes);
+    if (slopes) free(slopes);
     nvmlShutdown();
     if (DEBUG) {
         printf("Cleanup complete, exiting with signal %d\n", signum);
@@ -137,7 +137,6 @@ int main(int argc, char *argv[]) {
             if (DEBUG) {
                 printf("Failed to get device %d handle: %s\n", i, nvmlErrorString(result));
             }
-            free(slopes);
             cleanup(0);
         }
         result = nvmlDeviceGetNumFans(devices[i], &fanCounts[i]);
@@ -145,7 +144,6 @@ int main(int argc, char *argv[]) {
             if (DEBUG) {
                 printf("Failed to get fan count for device %d: %s\n", i, nvmlErrorString(result));
             }
-            free(slopes);
             cleanup(0);
         }
     }
@@ -185,7 +183,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    free(slopes);  // Free allocated memory (never reached due to infinite loop)
     cleanup(0);
     return 0;
 }
