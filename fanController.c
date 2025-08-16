@@ -16,6 +16,8 @@ static const int TempTargets[] = {55, 80}; // Can be any number of targets
 static const int FanTargets[] = {40, 100}; // Must match TempTargets length
 static const int TARGET_COUNT = sizeof(FanTargets) / sizeof(FanTargets[0]);
 
+int *slopes = NULL;
+
 // Pre-calculate slopes
 void initSlopes(int *slopes) {
     for(int k = 0; k < TARGET_COUNT - 1; k++) {
@@ -67,6 +69,7 @@ void cleanup(int signum) {
             resetFanControl(devices[i], fanCounts[i]);
         }
     }
+    free(slopes);
     nvmlShutdown();
     if (DEBUG) {
         printf("Cleanup complete, exiting with signal %d\n", signum);
@@ -81,7 +84,7 @@ int main(int argc, char *argv[]) {
     float polling_interval = 1.0; // Default 1 second
     
     // Dynamically allocate slopes array
-    int *slopes = malloc((TARGET_COUNT - 1) * sizeof(int));
+    slopes = malloc((TARGET_COUNT - 1) * sizeof(int));
     if (!slopes) {
         if (DEBUG) {
             printf("Failed to allocate memory for slopes\n");
