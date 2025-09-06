@@ -21,26 +21,21 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 
 This project uses a Makefile for compilation. The `nvml.h` header is included in the repository, so you don't need to install it separately.
 
-For stdout during normal operations `Device 0: Temp: 40°C, Fan Speed: 40%`
+Build options:
 
+1. **Build with Debug Output** *For development with detailed stdout logging (e.g., `Device 0: Temp: 40°C, Fan Speed: 40%`):*
 ```bash
 make DEBUG=1
 ```
-
-To build production executable `fanController`
-
+2. **Build Production Executable** *Creates the `fanController` binary for manual use:*
 ```bash
 make
 ```
-
-To install or update to system
-
+3. **Install to System** *Installs or updates the `fanController` binary to your system (requires root privileges):*
 ```bash
 sudo make install
 ```
-
-To uninstall
-
+4. **Uninstall from System** *Removes the `fanController` binary from your system (requires root privileges):*
 ```bash
 sudo make uninstall
 ```
@@ -55,11 +50,11 @@ sudo make uninstall
 Run the program with an optional polling interval (in seconds):
 
 ```bash
-./fanController [interval]
+fanController [interval]
 ```
 
 - Default interval is 1 second if not specified.
-- Example: `./fanController 0.5` for a 0.5-second base polling interval.
+- Example: `fanController 0.5` for a 0.5-second base polling interval.
 
 The program will:
 
