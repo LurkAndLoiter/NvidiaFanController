@@ -21,19 +21,28 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 
 This project uses a Makefile for compilation. The `nvml.h` header is included in the repository, so you don't need to install it separately.
 
-To build the executable `fanController` run `make` in the project folder:
+For stdout during normal operations `Device 0: Temp: 40°C, Fan Speed: 40%`
+
+```bash
+make DEBUG=1
+```
+
+To build production executable `fanController`
 
 ```bash
 make
 ```
 
-To build the default filesystem, enable, and start the fanController you can run this from the project folder:
+To install or update to system
 
 ```bash
-make
-sudo mv ./fanController /opt/fanController
-sudo cp ./nvidia-fancontroller.service /usr/lib/systemd/system/nvidia-fancontroller.service
-sudo systemctl enable --now nvidia-fancontroller.service
+sudo make install
+```
+
+To uninstall
+
+```bash
+sudo make uninstall
 ```
 
 ### Notes for Compilation
