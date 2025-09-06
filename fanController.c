@@ -192,26 +192,27 @@ int main(int argc, char *argv[]) {
       }
 
       int temp_diff = abs((int)temperatures[i] - (int)prev_temperatures[i]);
-      unsigned int new_fan_speed = fanspeedFromT(temperatures[i], slopes);
 
-      if ((temp_diff >= TEMP_THRESHOLD) &&
-          (new_fan_speed != prev_fan_speeds[i])) {
-        result = setFanSpeed(devices[i], new_fan_speed, fanCounts[i]);
-        if (result != NVML_SUCCESS) {
-          fprintf(stderr, "Failed to set fan speed for device %d: %s\n", i,
-                  nvmlErrorString(result));
-        } else {
-          prev_temperatures[i] = temperatures[i];
-          prev_fan_speeds[i] = new_fan_speed;
-          if (DEBUG) {
-            printf("Device %d: Temp: %u°C, Fan Speed: %u%%\n", i,
-                   temperatures[i], new_fan_speed);
+      if (temp_diff >= TEMP_THRESHOLD) {
+        unsigned int new_fan_speed = fanspeedFromT(temperatures[i], slopes);
+        if (new_fan_speed != prev_fan_speeds[i]) {
+          result = setFanSpeed(devices[i], new_fan_speed, fanCounts[i]);
+          if (result != NVML_SUCCESS) {
+            fprintf(stderr, "Failed to set fan speed for device %d: %s\n", i,
+                    nvmlErrorString(result));
+          } else {
+            prev_temperatures[i] = temperatures[i];
+            prev_fan_speeds[i] = new_fan_speed;
+            if (DEBUG) {
+              printf("Device %d: Temp: %u°C, Fan Speed: %u%%\n", i,
+                     temperatures[i], new_fan_speed);
+            }
           }
         }
       }
 
       float sleep_time =
-          (temp_diff > 5) ? polling_interval / 2 : polling_interval;
+          (temp_diff > 3) ? polling_interval / 2 : polling_interval;
       if (sleep_time < min_sleep_time)
         min_sleep_time = sleep_time;
     }
