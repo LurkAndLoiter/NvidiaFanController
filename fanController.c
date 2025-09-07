@@ -33,10 +33,13 @@
 
 #define TEMP_THRESHOLD 2 // degrees Celsius
 #define MAX_DEVICES 1    // Maximum number of GPUs to support
+#define MIN_TEMP 55      // Lowest value from TempTargets
+#define MAX_TEMP 80      // Highest value from TempTargets
 
 static const int TempTargets[] = {55, 80}; // Can be any number of targets
 static const int FanTargets[] = {40, 100}; // Must match TempTargets length
 static const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
+unsigned int FanSpeeds[MAX_TEMP - MIN_TEMP + 1];
 
 // Compile time sanity checks. These are here to pretect you
 _Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
@@ -65,6 +68,20 @@ unsigned int fanspeedFromT(unsigned int temperature, int *slopes) {
   }
   return FanTargets[i - 1] +
          ((temperature - TempTargets[i - 1]) * slopes[i - 1]) / 100;
+}
+
+/* populates the FanSpeeds array at runtime */
+void precalcFanSpeeds(int *slopes) {
+    for (int t = MIN_TEMP; t <= MAX_TEMP; t++) {
+        FanSpeeds[t - MIN_TEMP] = fanspeedFromT(t, slopes);
+    }
+}
+
+/* fold outlier temps into array range */
+unsigned int fanSpeed(unsigned int temperature) {
+    if (temperature < MIN_TEMP) temperature = MIN_TEMP;
+    if (temperature > MAX_TEMP) temperature = MAX_TEMP;
+    return FanSpeeds[temperature - MIN_TEMP];
 }
 
 nvmlReturn_t setFanSpeed(nvmlDevice_t device, unsigned int targetSpeed,
@@ -201,6 +218,7 @@ int main(int argc, char *argv[]) {
   }
 
   initSlopes(slopes);
+  precalcFanSpeeds(slopes);
 
   while (!shutdown_requested) {
     float min_sleep_time = polling_interval;
@@ -216,7 +234,7 @@ int main(int argc, char *argv[]) {
       int temp_diff = abs((int)temperatures[i] - (int)prev_temperatures[i]);
 
       if (temp_diff >= TEMP_THRESHOLD) {
-        unsigned int new_fan_speed = fanspeedFromT(temperatures[i], slopes);
+        unsigned int new_fan_speed = fanSpeed(temperatures[i]);
         if (new_fan_speed != prev_fan_speeds[i]) {
           result = setFanSpeed(devices[i], new_fan_speed, fanCounts[i]);
           if (result != NVML_SUCCESS) {
