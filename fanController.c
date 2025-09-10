@@ -94,8 +94,9 @@ nvmlReturn_t setFanSpeed(nvmlDevice_t device, unsigned int targetSpeed,
   nvmlReturn_t result;
   for (unsigned int j = 0; j < fanCount; j++) {
     result = nvmlDeviceSetFanSpeed_v2(device, j, targetSpeed);
-    if (result != NVML_SUCCESS)
+    if (result != NVML_SUCCESS) {
       return result;
+    }
   }
   return NVML_SUCCESS;
 }
@@ -104,8 +105,9 @@ nvmlReturn_t resetFanControl(nvmlDevice_t device, unsigned int fanCount) {
   nvmlReturn_t result;
   for (unsigned int j = 0; j < fanCount; j++) {
     result = nvmlDeviceSetDefaultFanSpeed_v2(device, j);
-    if (result != NVML_SUCCESS)
+    if (result != NVML_SUCCESS) {
       return result;
+    }
   }
   return NVML_SUCCESS;
 }
