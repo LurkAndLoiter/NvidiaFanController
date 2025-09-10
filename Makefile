@@ -18,7 +18,7 @@ install: fanController
 	sudo cp ./nvidia-fancontroller.service /usr/lib/systemd/system/nvidia-fancontroller.service
 	@if systemctl is-active --quiet nvidia-fancontroller; then \
 		sudo systemctl daemon-reload; \
-		echo "Reloaded nvidia-fancontroller.service"; \
+		sudo systemctl restart nvidia-fancontroller; \
 	else \
 		sudo systemctl enable --now nvidia-fancontroller; \
 	fi
