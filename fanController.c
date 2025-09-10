@@ -40,6 +40,11 @@ static const int TempTargets[] = {55, 80}; // Can be any number of targets
 static const int FanTargets[] = {40, 100}; // Must match TempTargets length
 static const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
 unsigned int FanSpeeds[MAX_TEMP - MIN_TEMP + 1];
+nvmlDevice_t devices[MAX_DEVICES];
+unsigned int fanCounts[MAX_DEVICES];
+unsigned int deviceCount = 0;
+volatile sig_atomic_t shutdown_requested = 0;
+
 
 // Compile time sanity checks. These are here to pretect you
 _Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
@@ -105,11 +110,6 @@ nvmlReturn_t resetFanControl(nvmlDevice_t device, unsigned int fanCount) {
   return NVML_SUCCESS;
 }
 
-nvmlDevice_t devices[MAX_DEVICES];
-unsigned int fanCounts[MAX_DEVICES];
-unsigned int deviceCount = 0;
-volatile sig_atomic_t shutdown_requested = 0;
-
 void handleSignal(int signum) {
   shutdown_requested = 1;
   if (DEBUG) {
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
   nvmlReturn_t result;
   unsigned int temperatures[MAX_DEVICES];
   unsigned int prev_temperatures[MAX_DEVICES] = {0};
-  unsigned int prev_fan_speeds[MAX_DEVICES] = {0};
+  unsigned int prev_fan_speeds[MAX_DEVICES] = {1};
   float polling_interval = 1.0;
   int slopes[CountTargets - 1];
 
