@@ -36,9 +36,9 @@
 #define MIN_TEMP 55      // Lowest value from TempTargets
 #define MAX_TEMP 80      // Highest value from TempTargets
 
-static const int TempTargets[] = {55, 80}; // Can be any number of targets
-static const int FanTargets[] = {40, 100}; // Must match TempTargets length
-static const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
+const int TempTargets[] = {55, 80}; // Can be any number of targets
+const int FanTargets[] = {40, 100}; // Must match TempTargets length
+const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
 unsigned int FanSpeeds[MAX_TEMP - MIN_TEMP + 1];
 nvmlDevice_t devices[MAX_DEVICES];
 unsigned int fanCounts[MAX_DEVICES];
