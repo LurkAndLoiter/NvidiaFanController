@@ -1,40 +1,38 @@
+PROGRAM := fanController
+BINDIR ?= /opt
+SYSTEMDIR ?= /usr/lib/systemd/system
 DEBUG ?= 0
+DESTDIR ?=
 
-CFLAGS = -Wall -g
+CFLAGS ?= -Wall -g
+LDFLAGS ?= -lnvidia-ml
 
 ifeq ($(DEBUG), 1)
     CFLAGS += -DDEBUG
 endif
 
-CC=gcc $(CFLAGS)
+.PHONY: all install uninstall clean
 
-all: fanController
+all: $(PROGRAM)-bin
 
-fanController: fanController.c
-	$(CC) -o fanController fanController.c -lnvidia-ml 
+$(PROGRAM)-bin: $(PROGRAM).o
+	$(CC) $(LDFLAGS) -o $(PROGRAM) $(PROGRAM).o
 
-install: fanController
-	sudo mv ./fanController /opt/fanController
-	sudo cp ./nvidia-fancontroller.service /usr/lib/systemd/system/nvidia-fancontroller.service
-	@if systemctl is-active --quiet nvidia-fancontroller; then \
-		sudo systemctl daemon-reload; \
-		sudo systemctl restart nvidia-fancontroller; \
-	else \
-		sudo systemctl enable --now nvidia-fancontroller; \
-	fi
+$(PROGRAM).o: $(PROGRAM).c
+	$(CC) $(CFLAGS) -c $(PROGRAM).c
+
+install: $(PROGRAM)-bin
+	install -Dm755 $(PROGRAM) $(DESTDIR)$(BINDIR)/$(PROGRAM)
+	install -Dm644 nvidia-fancontroller.service $(DESTDIR)$(SYSTEMDIR)/nvidia-fancontroller.service
+	systemctl daemon-reload || true
+	systemctl enable --now nvidia-fancontroller || true
 
 uninstall:
-	@if systemctl is-active --quiet nvidia-fancontroller; then \
-		sudo systemctl disable --now nvidia-fancontroller; \
-	fi
-	@if [ -f /opt/fanController ]; then \
-		sudo rm /opt/fanController && \
-		echo "Removed /opt/fanController"; \
-	fi
-	@if [ -f /usr/lib/systemd/system/nvidia-fancontroller.service ]; then \
-		sudo rm /usr/lib/systemd/system/nvidia-fancontroller.service && \
-		echo "Removed /usr/lib/systemd/system/nvidia-fancontroller.service"; \
-	fi
+	-systemctl disable --now nvidia-fancontroller || true
+	--rm -f $(DESTDIR)$(BINDIR)/$(PROGRAM)
+	--rm -f $(DESTDIR)$(SYSTEMDIR)/nvidia-fancontroller.service
+	-systemctl daemon-reload || true
+	$(MAKE) clean
 
 clean:
-	rm fanController
+	$(RM) $(PROGRAM) $(PROGRAM).o

@@ -53,8 +53,9 @@ typedef struct {
   unsigned int fanCount;
 } Device;
 
-void runTimeSanity(const int *TempTargets, const int *FanTargets,
-                   const int CountTargets) {
+void runTimeSanity(const unsigned int *TempTargets, 
+    const unsigned int *FanTargets, 
+    const unsigned int CountTargets) {
   // Runtime sanity checks. These are here to protect you.
   if (MIN_TEMP != TempTargets[0]) {
     DEBUG_PRINT("ERROR: MIN_TEMP does not align with TempTargets.\n");
@@ -80,12 +81,12 @@ void runTimeSanity(const int *TempTargets, const int *FanTargets,
     DEBUG_PRINT("ERROR: FanTargets maximum must not exceed 100\n");
     exit(EXIT_FAILURE);
   }
-  for (int k = 0; k < CountTargets - 1; k++) {
-    if (FanTargets[k + 1] < FanTargets[k]) {
+  for (unsigned int i = 0; i < CountTargets - 1; i++) {
+    if (FanTargets[i + 1] < FanTargets[i]) {
       DEBUG_PRINT("ERROR: FanTargets must be orderd min to max\n");
       exit(EXIT_FAILURE);
     }
-    if (TempTargets[k + 1] < TempTargets[k]) {
+    if (TempTargets[i + 1] < TempTargets[i]) {
       DEBUG_PRINT("ERROR: TempTargets must be orderd min to max\n");
       exit(EXIT_FAILURE);
     }
@@ -111,10 +112,11 @@ void signal_handler(const int signum) {
   cleanup(signum);
 }
 
-static unsigned int fanspeedFromT(const unsigned int temperature,
-                                  const int *slopes, const int *TempTargets,
-                                  const int *FanTargets,
-                                  const int CountTargets) {
+static unsigned int fanspeedFromT(const unsigned int temperature, 
+    const unsigned int *slopes, 
+    const unsigned int *TempTargets,
+    const unsigned int *FanTargets,
+    const unsigned int CountTargets) {
   if (CountTargets == 1)
     return FanTargets[0];
   if (temperature <= TempTargets[0])
@@ -131,17 +133,17 @@ static unsigned int fanspeedFromT(const unsigned int temperature,
 }
 
 void precalcFanSpeeds(void) {
-  const int TempTargets[] = {55, 80};
-  const int FanTargets[] = {40, 100};
-  const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
+  const unsigned int TempTargets[] = {55, 80};
+  const unsigned int FanTargets[] = {40, 100};
+  const unsigned int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
   // Compile time sanity checks. These are here to pretect you
   _Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
                      sizeof(FanTargets) / sizeof(FanTargets[0]),
                  "TempTargets and FanTargets must have the same length");
   runTimeSanity(TempTargets, FanTargets, CountTargets);
 
-  int slopes[CountTargets - 1];
-  for (int i = 0; i < CountTargets - 1; i++) {
+  unsigned int slopes[CountTargets - 1];
+  for (unsigned int i = 0; i < CountTargets - 1; i++) {
     slopes[i] = (FanTargets[i + 1] - FanTargets[i]) * 100 /
                 (TempTargets[i + 1] - TempTargets[i]);
   }
@@ -277,7 +279,7 @@ void threadDevices() {
   }
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
   signal(SIGINT, signal_handler);
   signal(SIGTERM, signal_handler);
 
