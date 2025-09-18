@@ -28,19 +28,18 @@
 #include <unistd.h>
 
 #ifdef DEBUG
-#define DEBUG_PRINT(fmt, args...) fprintf(stderr, "DEBUG: %s:%d: " fmt, __FILE__, __LINE__, ##args)
+#define DEBUG_PRINT(fmt, args...)                                              \
+  fprintf(stderr, "DEBUG: %s:%d: " fmt, __FILE__, __LINE__, ##args)
 #else
-#define DEBUG_PRINT(fmt, args...) do { } while (0)
+#define DEBUG_PRINT(fmt, args...)                                              \
+  do {                                                                         \
+  } while (0)
 #endif
 
-#define TEMP_THRESHOLD 2 
+#define TEMP_THRESHOLD 2 // Degree celcius before action
 #define MIN_TEMP 55      // Lowest value from TempTargets
 #define MAX_TEMP 80      // Highest value from TempTargets
 
-const int TempTargets[] = {55, 80}; // Can be any number of targets
-const int FanTargets[] = {40, 100}; // Must match TempTargets length
-
-const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
 unsigned int FanSpeeds[MAX_TEMP - MIN_TEMP + 1];
 static unsigned int deviceCount = 0;
 static volatile int terminate = 0;
@@ -54,15 +53,19 @@ typedef struct {
   unsigned int fanCount;
 } Device;
 
-// Compile time sanity checks. These are here to pretect you
-_Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
-                   sizeof(FanTargets) / sizeof(FanTargets[0]),
-               "TempTargets and FanTargets must have the same length");
-
-void runTimeSanity() {
+void runTimeSanity(const int *TempTargets, const int *FanTargets,
+                   const int CountTargets) {
   // Runtime sanity checks. These are here to protect you.
+  if (MIN_TEMP != TempTargets[0]) {
+    DEBUG_PRINT("ERROR: MIN_TEMP does not align with TempTargets.\n");
+    exit(EXIT_FAILURE);
+  }
+  if (MAX_TEMP != TempTargets[CountTargets - 1]) {
+    DEBUG_PRINT("ERROR: MAX_TEMP does not align with TempTargets.\n");
+    exit(EXIT_FAILURE);
+  }
   if (TempTargets[0] < 0) {
-  DEBUG_PRINT("ERROR: TempTargets minimum must be at least 0\n");
+    DEBUG_PRINT("ERROR: TempTargets minimum must be at least 0\n");
     exit(EXIT_FAILURE);
   }
   if (TempTargets[CountTargets - 1] > 90) {
@@ -108,7 +111,10 @@ void signal_handler(const int signum) {
   cleanup(signum);
 }
 
-static unsigned int fanspeedFromT(unsigned int temperature, int *slopes) {
+static unsigned int fanspeedFromT(const unsigned int temperature,
+                                  const int *slopes, const int *TempTargets,
+                                  const int *FanTargets,
+                                  const int CountTargets) {
   if (CountTargets == 1)
     return FanTargets[0];
   if (temperature <= TempTargets[0])
@@ -125,6 +131,15 @@ static unsigned int fanspeedFromT(unsigned int temperature, int *slopes) {
 }
 
 void precalcFanSpeeds(void) {
+  const int TempTargets[] = {55, 80};
+  const int FanTargets[] = {40, 100};
+  const int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
+  // Compile time sanity checks. These are here to pretect you
+  _Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
+                     sizeof(FanTargets) / sizeof(FanTargets[0]),
+                 "TempTargets and FanTargets must have the same length");
+  runTimeSanity(TempTargets, FanTargets, CountTargets);
+
   int slopes[CountTargets - 1];
   for (int i = 0; i < CountTargets - 1; i++) {
     slopes[i] = (FanTargets[i + 1] - FanTargets[i]) * 100 /
@@ -132,14 +147,17 @@ void precalcFanSpeeds(void) {
   }
 
   for (int i = MIN_TEMP; i <= MAX_TEMP; i++) {
-    FanSpeeds[i - MIN_TEMP] = fanspeedFromT(i, slopes);
+    FanSpeeds[i - MIN_TEMP] =
+        fanspeedFromT(i, slopes, TempTargets, FanTargets, CountTargets);
   }
 }
 
 unsigned int getFanSpeed(unsigned int temperature) {
-    if (temperature < MIN_TEMP) temperature = MIN_TEMP;
-    if (temperature > MAX_TEMP) temperature = MAX_TEMP;
-    return FanSpeeds[temperature - MIN_TEMP];
+  if (temperature < MIN_TEMP)
+    temperature = MIN_TEMP;
+  if (temperature > MAX_TEMP)
+    temperature = MAX_TEMP;
+  return FanSpeeds[temperature - MIN_TEMP];
 }
 
 static void nvmlStart() {
@@ -153,8 +171,7 @@ static void nvmlStart() {
 
   result = nvmlDeviceGetCount_v2(&deviceCount);
   if (result != NVML_SUCCESS) {
-    DEBUG_PRINT("Failed to get device count: %s\n",
-            nvmlErrorString(result));
+    DEBUG_PRINT("Failed to get device count: %s\n", nvmlErrorString(result));
     cleanup(EXIT_FAILURE);
   } else if (deviceCount < 1) {
     DEBUG_PRINT("Unsupported: No Nvidia Devices found.\n");
@@ -166,18 +183,19 @@ void *deviceLoop(void *arg) {
   Device *device = (Device *)arg;
   nvmlReturn_t result;
   unsigned int temperature;
+  unsigned int polling_interval = 1000000;
 
   result = nvmlDeviceGetHandleByIndex_v2(device->id, &device->handle);
   if (result != NVML_SUCCESS) {
     DEBUG_PRINT("Failed to get device %d handle: %s\n", device->id,
-            nvmlErrorString(result));
+                nvmlErrorString(result));
     cleanup(EXIT_FAILURE);
   }
 
   result = nvmlDeviceGetNumFans(device->handle, &device->fanCount);
   if (result != NVML_SUCCESS) {
     DEBUG_PRINT("Failed to get fan count for device %d: %s\n", device->id,
-            nvmlErrorString(result));
+                nvmlErrorString(result));
     cleanup(EXIT_FAILURE);
   }
 
@@ -186,31 +204,33 @@ void *deviceLoop(void *arg) {
     result = nvmlDeviceGetTemperature(device->handle, NVML_TEMPERATURE_GPU,
                                       &temperature);
     if (result != NVML_SUCCESS) {
-      DEBUG_PRINT("Failed to get temperature for device %d: %s\n",
-              device->id, nvmlErrorString(result));
+      DEBUG_PRINT("Failed to get temperature for device %d: %s\n", device->id,
+                  nvmlErrorString(result));
       continue;
     }
 
-    if (abs((int)device->prevTemperature - (int)temperature) >= TEMP_THRESHOLD) {
-      unsigned int fanSpeed = getFanSpeed(temperature);
+    int temp_diff = abs((int)device->prevTemperature - (int)temperature);
+    if (temp_diff >= TEMP_THRESHOLD) {
 
+      unsigned int fanSpeed = getFanSpeed(temperature);
       if (device->prevFanSpeed != fanSpeed) {
         for (unsigned int i = 0; i < device->fanCount; i++) {
           result = nvmlDeviceSetFanSpeed_v2(device->handle, i, fanSpeed);
           if (result != NVML_SUCCESS) {
-            DEBUG_PRINT("Failed to set fan: %d to speed:%d for device:%d: %s\n", 
-                i, fanSpeed, device->id, nvmlErrorString(result));
+            DEBUG_PRINT("Failed to set fan: %d to speed:%d for device:%d: %s\n",
+                        i, fanSpeed, device->id, nvmlErrorString(result));
           }
-          DEBUG_PRINT("Monitoring device: %d temp: %d->%d fans:%d@%d->%d\n", 
-              device->id, device->prevTemperature, temperature, 
-              device->fanCount, device->prevFanSpeed, fanSpeed);
         }
 
         device->prevTemperature = temperature;
         device->prevFanSpeed = fanSpeed;
+
+        DEBUG_PRINT("Monitoring device: %d temp: %d->%d fans:%d@%d->%d\n", 
+            device->id, device->prevTemperature, temperature,
+            device->fanCount, device->prevFanSpeed, fanSpeed);
       }
     }
-    sleep(1);
+    usleep((temp_diff > 5) ? polling_interval / 2 : polling_interval);
   }
   /* End LOOP */
 
@@ -218,8 +238,9 @@ void *deviceLoop(void *arg) {
   for (unsigned int i = 0; i < device->fanCount; i++) {
     result = nvmlDeviceSetDefaultFanSpeed_v2(device->handle, i);
     if (result != NVML_SUCCESS) {
-        DEBUG_PRINT("Failed to set fan: %d to firmware default for device:%d: %s\n", 
-                i, device->id, nvmlErrorString(result));
+      DEBUG_PRINT(
+          "Failed to set fan: %d to firmware default for device:%d: %s\n", i,
+          device->id, nvmlErrorString(result));
     }
   }
 
@@ -258,9 +279,8 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, signal_handler);
   signal(SIGTERM, signal_handler);
 
-  runTimeSanity();
-  nvmlStart();
   precalcFanSpeeds();
+  nvmlStart();
   threadDevices();
 
   while (!terminate) {
