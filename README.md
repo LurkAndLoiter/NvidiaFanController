@@ -4,6 +4,8 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 
 ## Features
 
+- **Display Server Agnostic:** Does not depend on X or Wayland.
+- **KISS:** Attempts to control the Nvidia fans. Nothing else.
 - **Dynamic Fan Control**: Adjusts fan speeds based on GPU temperature using a linear interpolation between target points.
 - **Multi-GPU Support**: Monitors and controls fans on multiple NVIDIA GPUs simultaneously.
 - **Signal Handling**: Gracefully handles termination signals (e.g., Ctrl+C) to reset fan control to default.
