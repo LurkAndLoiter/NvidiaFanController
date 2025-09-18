@@ -183,7 +183,7 @@ void *deviceLoop(void *arg) {
   Device *device = (Device *)arg;
   nvmlReturn_t result;
   unsigned int temperature;
-  unsigned int polling_interval = 1000000;
+  const unsigned int polling_interval = 1000000;
 
   result = nvmlDeviceGetHandleByIndex_v2(device->id, &device->handle);
   if (result != NVML_SUCCESS) {
@@ -209,7 +209,9 @@ void *deviceLoop(void *arg) {
       continue;
     }
 
-    int temp_diff = abs((int)device->prevTemperature - (int)temperature);
+    unsigned int temp_diff = device->prevTemperature > temperature 
+      ? device->prevTemperature - temperature
+      : temperature - device->prevTemperature;
     if (temp_diff >= TEMP_THRESHOLD) {
 
       unsigned int fanSpeed = getFanSpeed(temperature);
