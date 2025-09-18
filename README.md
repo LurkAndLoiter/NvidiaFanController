@@ -8,7 +8,6 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 - **Multi-GPU Support**: Monitors and controls fans on multiple NVIDIA GPUs simultaneously.
 - **Signal Handling**: Gracefully handles termination signals (e.g., Ctrl+C) to reset fan control to default.
 - **Adaptive Polling**: Adjusts polling interval based on temperature changes for efficiency.
-- **Command-Line Option**: Accepts a polling interval as an optional argument (e.g., `./fanController 0.5` for 0.5 seconds).
 
 ## Prerequisites
 
@@ -18,8 +17,6 @@ This project is a C-based utility for controlling NVIDIA GPU fan speeds based on
 - `make` for building with the provided Makefile.
 
 ## Building the Project
-
-This project uses a Makefile for compilation. The `nvml.h` header is included in the repository, so you don't need to install it separately.
 
 Build options:
 
@@ -43,29 +40,21 @@ sudo make uninstall
 ### Notes for Compilation
 
 - Ensure `libnvidia-ml.so` is available on your system (usually in `/usr/lib` or `/usr/lib64`). You may need root privileges to link against it.
-- In `fanController.c` `#include "nvml.h"` assumes `nvml.h` is in the project directory, which it is in this repository.
 
 ## Usage
 
-Run the program with an optional polling interval (in seconds):
-
-```bash
-fanController [interval]
-```
-
-- Default interval is 1 second if not specified.
-- Example: `fanController 0.5` for a 0.5-second base polling interval.
-
 The program will:
 
-1. Initialize NVML and detect all NVIDIA GPUs.
-2. Monitor GPU temperatures continuously.
-3. Adjust fan speeds based on the temperature and predefined targets.
-4. Log temperature and fan speed changes to stdout.
+1. Precalculate temperature to an array of targets for reduced runtime overhead.
+2. Initialize NVML and detect all NVIDIA GPUs.
+3. Create a thread for all NVIDIA GPUs.
+4. Monitor GPU temperature continuously.
+5. Adjust fan speeds based on the temperature and predefined targets.
+6. On termination cleanup and reset fans to firmware control.
 
 ## Systemd service file
 
-- The included systemd service file will attempt to load the fanController binary at boot alongside items such as bluetoothd and networkd this means the fanController will already be working by the time you're at your login screen.
+- The included systemd service file will attempt to load the fanController binary at boot. fanController will already be working by the time you're at your login screen.
 - nvidia-fancontroller.service assumes a fanController location of /opt/fanController adjust according to your setup.
 
 > [!note]
@@ -115,11 +104,6 @@ The fan control logic relies on two arrays defined in `fanController.c`:
 - Prevents unnecessary fan speed changes due to minor temperature fluctuations, reducing wear and noise.
 - Adjust this value based on your sensitivity needs (e.g., increase to 5 for less frequent updates).
 
-### MAX_DEVICES
-
-- Defined as `#define MAX_DEVICES 1`.
-- Limits the number of GPUs the program will manage to prevent buffer overflows.
-- If you have more than 1 GPUs, increase this value and recompile.
 
 ### Code Structure
 
@@ -129,14 +113,17 @@ The fan control logic relies on two arrays defined in `fanController.c`:
 
 ### How It Works
 
+- **Speed Calculation:** Pre-calculates fan speeds to temperature targets for efficient interpolation.
 - **Initialization:** NVML is initialized, and GPU handles are obtained.
-- **Slope Calculation:** Pre-calculates slopes between temperature targets for efficient interpolation.
-- **Main Loop:** Continuously monitors GPU temperatures, adjusts fan speeds if the change exceeds `TEMP_THRESHOLD`, and sleeps adaptively based on temperature variation.
-- **Cleanup:** Resets fan control to firmware defaults on exit or signal interruption.
+- **Threading:** Threads are made for every device. 
+- **Device Loop:**
+  - Continuously monitors GPU temperatures
+  - Adjusts fan speeds if the change exceeds `TEMP_THRESHOLD` and `fanSpeed` is a new speed
+  - Sleeps adaptively based on temperature variation.
+  - On termination resets fan control to firmware defauls
+- **Cleanup:** Allows threads to close gracefully.
 
 ### Important Notes
 
-- **Permissions:** Running the program may require root privileges (`sudo`) to access NVML functions.
-- **Error Handling:** Check stdout for error messages if NVML calls fail (e.g., device not found, fan speed setting failed).
+- **Permissions:** Running the program directly may require root privileges (`sudo`) to access NVML functions.
 - **Fan Speed Stability:** Test your `FanTargets` values to ensure they work with your specific GPU model.
-- **Memory:** The program dynamically allocates memory for the slopes array based on `TARGET_COUNT`. Ensure your system has sufficient memory if using many targets.
