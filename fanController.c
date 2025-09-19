@@ -73,11 +73,11 @@ void runTimeSanity(const unsigned int *TempTargets,
   }
   for (unsigned int i = 0; i < CountTargets - 1; i++) {
     if (FanTargets[i + 1] < FanTargets[i]) {
-      DEBUG_PRINT("ERROR: FanTargets must be orderd min to max\n");
+      DEBUG_PRINT("ERROR: FanTargets must be ordered min to max\n");
       exit(EXIT_FAILURE);
     }
     if (TempTargets[i + 1] < TempTargets[i]) {
-      DEBUG_PRINT("ERROR: TempTargets must be orderd min to max\n");
+      DEBUG_PRINT("ERROR: TempTargets must be ordered min to max\n");
       exit(EXIT_FAILURE);
     }
   }
@@ -126,7 +126,7 @@ void precalcFanSpeeds(void) {
   const unsigned int TempTargets[] = {55, 80};
   const unsigned int FanTargets[] = {40, 100};
   const unsigned int CountTargets = sizeof(FanTargets) / sizeof(FanTargets[0]);
-  // Compile time sanity checks. These are here to pretect you
+  // Compile time sanity checks. These are here to protect you
   _Static_assert(sizeof(TempTargets) / sizeof(TempTargets[0]) ==
                      sizeof(FanTargets) / sizeof(FanTargets[0]),
                  "TempTargets and FanTargets must have the same length");
