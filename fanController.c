@@ -28,12 +28,10 @@
 #include <unistd.h>
 
 #ifdef DEBUG
-#define DEBUG_PRINT(fmt, args...)                                              \
-  fprintf(stderr, "DEBUG: %s:%d: " fmt, __FILE__, __LINE__, ##args)
+#define DEBUG_PRINT(fmt, ...)                                                  \
+  fprintf(stderr, "DEBUG: %s:%d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #else
-#define DEBUG_PRINT(fmt, args...)                                              \
-  do {                                                                         \
-  } while (0)
+#define DEBUG_PRINT(fmt, ...)
 #endif
 
 #define TEMP_THRESHOLD 2 // Degree celcius before action
@@ -53,9 +51,9 @@ typedef struct {
   unsigned int fanCount;
 } Device;
 
-void runTimeSanity(const unsigned int *TempTargets, 
-    const unsigned int *FanTargets, 
-    const unsigned int CountTargets) {
+void runTimeSanity(const unsigned int *TempTargets,
+                   const unsigned int *FanTargets,
+                   const unsigned int CountTargets) {
   // Runtime sanity checks. These are here to protect you.
   if (MIN_TEMP != TempTargets[0]) {
     DEBUG_PRINT("ERROR: MIN_TEMP does not align with TempTargets.\n");
@@ -65,16 +63,8 @@ void runTimeSanity(const unsigned int *TempTargets,
     DEBUG_PRINT("ERROR: MAX_TEMP does not align with TempTargets.\n");
     exit(EXIT_FAILURE);
   }
-  if (TempTargets[0] < 0) {
-    DEBUG_PRINT("ERROR: TempTargets minimum must be at least 0\n");
-    exit(EXIT_FAILURE);
-  }
   if (TempTargets[CountTargets - 1] > 90) {
     DEBUG_PRINT("ERROR: TempTargets maximum must not exceed 90\n");
-    exit(EXIT_FAILURE);
-  }
-  if (FanTargets[0] < 0) {
-    DEBUG_PRINT("ERROR: FanTargets minimum must be at least 0\n");
     exit(EXIT_FAILURE);
   }
   if (FanTargets[CountTargets - 1] > 100) {
@@ -112,11 +102,11 @@ void signal_handler(const int signum) {
   cleanup(signum);
 }
 
-static unsigned int fanspeedFromT(const unsigned int temperature, 
-    const unsigned int *slopes, 
-    const unsigned int *TempTargets,
-    const unsigned int *FanTargets,
-    const unsigned int CountTargets) {
+static unsigned int fanspeedFromT(const unsigned int temperature,
+                                  const unsigned int *slopes,
+                                  const unsigned int *TempTargets,
+                                  const unsigned int *FanTargets,
+                                  const unsigned int CountTargets) {
   if (CountTargets == 1)
     return FanTargets[0];
   if (temperature <= TempTargets[0])
@@ -211,9 +201,9 @@ void *deviceLoop(void *arg) {
       continue;
     }
 
-    unsigned int temp_diff = device->prevTemperature > temperature 
-      ? device->prevTemperature - temperature
-      : temperature - device->prevTemperature;
+    unsigned int temp_diff = device->prevTemperature > temperature
+                                 ? device->prevTemperature - temperature
+                                 : temperature - device->prevTemperature;
     if (temp_diff >= TEMP_THRESHOLD) {
 
       unsigned int fanSpeed = getFanSpeed(temperature);
@@ -229,9 +219,9 @@ void *deviceLoop(void *arg) {
         device->prevTemperature = temperature;
         device->prevFanSpeed = fanSpeed;
 
-        DEBUG_PRINT("Monitoring device: %d temp: %d->%d fans:%d@%d->%d\n", 
-            device->id, device->prevTemperature, temperature,
-            device->fanCount, device->prevFanSpeed, fanSpeed);
+        DEBUG_PRINT("Monitoring device: %d temp: %d->%d fans:%d@%d->%d\n",
+                    device->id, device->prevTemperature, temperature,
+                    device->fanCount, device->prevFanSpeed, fanSpeed);
       }
     }
     usleep((temp_diff > 5) ? polling_interval / 2 : polling_interval);

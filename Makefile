@@ -5,7 +5,7 @@ DEBUG ?= 0
 DESTDIR ?=
 
 CFLAGS ?= -Wall -g
-LDFLAGS ?= -lnvidia-ml
+LDFLAGS ?=
 
 ifeq ($(DEBUG), 1)
     CFLAGS += -DDEBUG
@@ -16,7 +16,7 @@ endif
 all: $(PROGRAM)-bin
 
 $(PROGRAM)-bin: $(PROGRAM).o
-	$(CC) $(LDFLAGS) -o $(PROGRAM) $(PROGRAM).o
+	$(CC) $(LDFLAGS) -o $(PROGRAM) $(PROGRAM).o -lnvidia-ml
 
 $(PROGRAM).o: $(PROGRAM).c
 	$(CC) $(CFLAGS) -c $(PROGRAM).c
