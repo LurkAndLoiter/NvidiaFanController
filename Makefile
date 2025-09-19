@@ -24,14 +24,14 @@ $(PROGRAM).o: $(PROGRAM).c
 install: $(PROGRAM)-bin
 	install -Dm755 $(PROGRAM) $(DESTDIR)$(BINDIR)/$(PROGRAM)
 	install -Dm644 nvidia-fancontroller.service $(DESTDIR)$(SYSTEMDIR)/nvidia-fancontroller.service
-	systemctl daemon-reload || true
-	systemctl enable --now nvidia-fancontroller || true
+	-systemctl daemon-reload
+	-systemctl enable --now nvidia-fancontroller
 
 uninstall:
-	-systemctl disable --now nvidia-fancontroller || true
+	-systemctl disable --now nvidia-fancontroller
 	--rm -f $(DESTDIR)$(BINDIR)/$(PROGRAM)
 	--rm -f $(DESTDIR)$(SYSTEMDIR)/nvidia-fancontroller.service
-	-systemctl daemon-reload || true
+	-systemctl daemon-reload
 	$(MAKE) clean
 
 clean:
