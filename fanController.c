@@ -234,12 +234,12 @@ void *deviceLoop(void *arg) {
           }
         }
 
-        device->prevTemperature = temperature;
-        device->prevFanSpeed = fanSpeed;
-
         DEBUG_PRINT("Monitoring device: %d temp: %d->%d fans:%d@%d->%d\n",
                     device->id, device->prevTemperature, temperature,
                     device->fanCount, device->prevFanSpeed, fanSpeed);
+
+        device->prevTemperature = temperature;
+        device->prevFanSpeed = fanSpeed;
       }
     }
     usleep((temp_diff > 5) ? polling_interval / 2 : polling_interval);
